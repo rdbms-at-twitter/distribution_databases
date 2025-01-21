@@ -88,3 +88,10 @@ Sample records:
 [ec2-user@ip-172-31-8-156 dsql]$
 
 ```
+
+
+- Table Definition
+
+![image](https://github.com/user-attachments/assets/f5a1d8ea-a6b7-400c-a93d-6b0c7ef7e7e4)
+
+
