@@ -26,6 +26,7 @@ uv add boto3 "psycopg[binary]>=3"
 
 #### Run Script
 
+- dsql_loop_insert.py
 
 ```
 [ec2-user@ip-172-31-8-156 dsql]$ uv run dsql_loop_insert.py
@@ -57,4 +58,33 @@ Created at: 2025-01-20 23:31:23.221360
 ```
 
 
+- sample_w_retry.py
 
+```
+[ec2-user@ip-172-31-8-156 dsql]$ uv run sample_w_retry.py
+Inserted row 1: ('John Doe 0', 'Sydney', '555-378-4845')
+Inserted row 2: ('John Doe 1', 'Tokyo', '555-238-1502')
+Inserted row 3: ('John Doe 2', 'Sydney', '555-302-1648')
+Inserted row 4: ('John Doe 3', 'Sydney', '555-591-9521')
+Inserted row 5: ('John Doe 4', 'Sydney', '555-584-8596')
+Inserted row 6: ('John Doe 5', 'London', '555-220-9422')
+Inserted row 7: ('John Doe 6', 'New York', '555-612-5747')
+Inserted row 8: ('John Doe 7', 'Tokyo', '555-895-7045')
+Inserted row 9: ('John Doe 8', 'Tokyo', '555-965-8332')
+Inserted row 10: ('John Doe 9', 'Tokyo', '555-868-5182')
+Total records in table: 814
+
+Sample records:
+(UUID('00359fda-a15d-49ac-9ae6-faa7a854e86b'), 'John Doe 95', 'New York', '555-360-7800')
+(UUID('00569984-3706-4ab3-a666-89bf074f0134'), 'John Doe 12', 'Sydney', '555-378-6178')
+(UUID('00755056-fc0b-4548-a51c-1b2797b75c5a'), 'John Doe 85', 'Paris', '555-386-4893')
+(UUID('009d0a08-ef97-4c2d-80d3-d6d297160cdf'), 'John Doe 65', 'New York', '555-334-7627')
+(UUID('00f90e47-e8bd-49f2-a2ed-8c33c22a35d3'), 'John Doe 17', 'London', '555-707-9441')
+(UUID('011139fc-cf31-4498-a10b-f7d9d8934294'), 'John Doe 92', 'London', '555-899-3309')
+(UUID('01b1ffa4-da44-4a02-ad6f-59f30a67e5a6'), 'John Doe 34', 'Sydney', '555-340-3718')
+(UUID('0233f548-4479-4998-ac3c-44fe4cae3ce5'), 'John Doe 15', 'Tokyo', '555-402-8077')
+(UUID('025078dd-2bd3-4bba-83fd-5abba4e59921'), 'John Doe 24', 'London', '555-610-5542')
+(UUID('0282651c-3b99-4997-84f1-c5a1e7d8fdb8'), 'John Doe 89', 'Sydney', '555-443-3581')
+[ec2-user@ip-172-31-8-156 dsql]$
+
+```
