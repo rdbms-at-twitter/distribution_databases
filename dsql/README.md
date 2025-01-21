@@ -28,7 +28,7 @@ uv add boto3 "psycopg[binary]>=3"
 
 
 ```
-[ec2-user@ip-172-31-8-156 dsql]$ uv run t_John.py
+[ec2-user@ip-172-31-8-156 dsql]$ uv run dsql_loop_insert.py
 
 Table structure:
 Column: id, Type: uuid
