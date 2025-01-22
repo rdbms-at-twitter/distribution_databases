@@ -130,3 +130,6 @@ Inserted row 11: ('John Doe 10', 'New York', '555-900-4665')
 Inserted row 12: ('John Doe 11', 'New York', '555-652-4544')
 Inserted row 13: ('John Doe 12', 'Paris', '555-375-8174')
 ```
+
+![image](https://github.com/user-attachments/assets/5c8fb4e3-2c10-4462-b01d-35fbd78be16c)
+
