@@ -91,11 +91,40 @@ Sample records:
 
 
 - Table Definition
-
 ![image](https://github.com/user-attachments/assets/f5a1d8ea-a6b7-400c-a93d-6b0c7ef7e7e4)
 
 
 - Multi Region Act/Act Cluster
-
 ![image](https://github.com/user-attachments/assets/d4515fc1-5bbf-4014-857a-8605e7999b0a)
 
+
+
+### Additional Sample with Serial Numbers
+
+- sample_w_serial.py
+
+Create a function before running this script.
+
+```
+create function sample_serial_generator() RETURNS bigint AS $$ select coalesce(max(id)+1,1)::bigint from sample_serial $$ LANGUAGE sql;
+```
+
+
+- Output
+
+```
+[ec2-user@ip-172-31-8-156 dsql]$ uv run sample_w_serial.py
+Inserted row 1: ('John Doe 0', 'Paris', '555-889-3058')
+Inserted row 2: ('John Doe 1', 'New York', '555-517-2824')
+Inserted row 3: ('John Doe 2', 'Paris', '555-650-7147')
+Inserted row 4: ('John Doe 3', 'New York', '555-452-7337')
+Inserted row 5: ('John Doe 4', 'Tokyo', '555-455-7189')
+Inserted row 6: ('John Doe 5', 'London', '555-855-8284')
+Inserted row 7: ('John Doe 6', 'London', '555-687-5898')
+Inserted row 8: ('John Doe 7', 'London', '555-804-1127')
+Inserted row 9: ('John Doe 8', 'Tokyo', '555-307-8149')
+Inserted row 10: ('John Doe 9', 'Sydney', '555-166-3292')
+Inserted row 11: ('John Doe 10', 'New York', '555-900-4665')
+Inserted row 12: ('John Doe 11', 'New York', '555-652-4544')
+Inserted row 13: ('John Doe 12', 'Paris', '555-375-8174')
+```
