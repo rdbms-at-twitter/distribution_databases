@@ -10,6 +10,21 @@ https://docs.aws.amazon.com/ja_jp/aurora-dsql/latest/userguide/SECTION_program-w
 
 - Install uv
 
+```
+[ec2-user@ip-172-31-8-156 dsql]$ uvx pycowsay 'hello world!'
+
+  ------------
+< hello world! >
+  ------------
+   \   ^__^
+    \  (oo)\_______
+       (__)\       )\/\
+           ||----w |
+           ||     ||
+
+[ec2-user@ip-172-31-8-156 dsql]$
+```
+
 https://docs.astral.sh/uv/
 
 ```
