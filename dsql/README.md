@@ -149,7 +149,7 @@ Inserted row 13: ('John Doe 12', 'Paris', '555-375-8174')
 ![image](https://github.com/user-attachments/assets/5c8fb4e3-2c10-4462-b01d-35fbd78be16c)
 
 
-### Inserting simultaneously from Virginia and Ohio
+### Inserting simultaneously from Virginia (sample_w_serial_virginia.py) and Ohio (sample_w_serial_ohaio.py)
 
 - Control Conflicts
 
@@ -176,5 +176,6 @@ def retry_operation(operation, max_attempts=10, delay=1):
 ![image](https://github.com/user-attachments/assets/65f77c0d-b593-4e2f-906a-a027ddba0f95)
 
 - Insert 1,000 rows from each regions. (No data loss)
+
 ![image](https://github.com/user-attachments/assets/5b14c876-577b-4e9d-ab96-d3097be92ae3)
 
