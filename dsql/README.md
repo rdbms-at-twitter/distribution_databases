@@ -148,3 +148,9 @@ Inserted row 13: ('John Doe 12', 'Paris', '555-375-8174')
 
 ![image](https://github.com/user-attachments/assets/5c8fb4e3-2c10-4462-b01d-35fbd78be16c)
 
+
+### Inserting simultaneously from Virginia and Ohio
+
+
+![image](https://github.com/user-attachments/assets/65f77c0d-b593-4e2f-906a-a027ddba0f95)
+
