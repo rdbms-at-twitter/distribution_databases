@@ -151,6 +151,30 @@ Inserted row 13: ('John Doe 12', 'Paris', '555-375-8174')
 
 ### Inserting simultaneously from Virginia and Ohio
 
+- Control Conflicts
+
+When performing Insert operations simultaneously from two Regions on the same row, conflicts may occur during commit. However, these conflicts can be properly handled by implementing retry logic in the application layer.　While traditional RDBMS typically implements and controls locking at the database level, DSQL detects conflicts at commit time and relies on proper error handling in the application layer for control.
+
+```
+def retry_operation(operation, max_attempts=10, delay=1):
+    """Retry an operation with exponential backoff"""
+    last_exception = None
+    for attempt in range(max_attempts):
+        try:
+            return operation()
+        except Exception as e:
+            last_exception = e
+            if attempt == max_attempts - 1:  # Last attempt
+                print(f"Failed after {max_attempts} attempts. Last error: {str(e)}")
+                raise last_exception
+            print(f"Attempt {attempt + 1} failed. Retrying in {delay} seconds...")
+            print(f"Error: {str(e)}")
+            time.sleep(delay)
+```
+
 
 ![image](https://github.com/user-attachments/assets/65f77c0d-b593-4e2f-906a-a027ddba0f95)
+
+- Insert 1,000 rows from each regions. (No data loss)
+![image](https://github.com/user-attachments/assets/5b14c876-577b-4e9d-ab96-d3097be92ae3)
 
