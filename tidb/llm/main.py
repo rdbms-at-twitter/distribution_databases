@@ -67,7 +67,7 @@ def clear_screen():
     st.session_state.messages = [{"role": "assistant", "content": "TiDBのことについて学習しています。色々聞いてみてね！"}]
 
 with st.sidebar:
-    st.title('TiDBとBedrockを使ったRAGアプリケーション🤖')
+    st.title('TiDBとBedrockを使ったRAGアプリケーション')
     st.divider()
 #   st.image('public/bedrock.png', caption='Amazon Bedrock')
     st.button('Clear Screen', on_click=clear_screen)
