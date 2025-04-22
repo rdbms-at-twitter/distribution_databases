@@ -1,0 +1,8 @@
+boto3
+llama-index
+llama-index-llms-bedrock
+llama-index-embeddings-bedrock
+llama-index-vector-stores-tidbvector
+llama-index-readers-web
+streamlit
+python-dotenv
