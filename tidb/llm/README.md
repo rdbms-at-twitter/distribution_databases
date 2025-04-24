@@ -13,6 +13,10 @@
 +-------------------------------+
 ```
 - Amazon Bedrock
+```
+llm = BedrockConverse(model="anthropic.claude-3-sonnet-20240229-v1:0")
+embed_model = BedrockEmbedding(model="amazon.titan-embed-text-v2:0")
+```
 - Python and PiP
 ```
 $ python3 -V
