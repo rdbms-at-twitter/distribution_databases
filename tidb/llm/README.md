@@ -5,7 +5,7 @@
 
 - TiDB Cloud Serverless (Free Tier)
 ```
-.7.28-TiDB-Serverless [(none)]> select @@version;
+5.7.28-TiDB-Serverless [(none)]> select @@version;
 +-------------------------------+
 | @@version                     |
 +-------------------------------+
