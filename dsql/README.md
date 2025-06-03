@@ -179,3 +179,54 @@ def retry_operation(operation, max_attempts=10, delay=1):
 
 ![image](https://github.com/user-attachments/assets/5b14c876-577b-4e9d-ab96-d3097be92ae3)
 
+
+## Cost Estimation （fetch-dpus-v1.sh）
+
+Reference : https://marc-bowes.com/dsql-how-to-spend-a-dollar.html
+
+- Sigle Region
+```
+[ec2-user@ip-172-31-8-156 xanadu_ga]$ sh  fetch-dpus-v1.sh <cluster id>
+Fetching metrics for cluster xxxxxxxxxx for the current month...
+Time range: 2025-06-01T00:00:00Z to 2025-06-03T22:49:22Z
+======= Cluster Summary =======
+Cluster ID:      xxxxxxxxxx
+Storage Size:    8.43 MB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 6054.033971 DPUs
+  - Compute DPU: 652.727744 DPUs
+  - Read DPU:    387.837330 DPUs
+  - Write DPU:   5013.468896 DPUs
+  - MultiRegionWrite DPU: 0.000000 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.0484 (at $8.00 per 1M DPU units)
+Storage Cost:    $.002783 (monthly)
+Total Monthly:   $.051183
+==============================
+```
+- Multi Region
+```
+$ sh  fetch-dpus-v1.sh <cluster id>
+Fetching metrics for cluster xxxxxxxxxx for the current month...
+Time range: 2025-06-01T00:00:00Z to 2025-06-03T22:49:51Z
+======= Cluster Summary =======
+Cluster ID:      xxxxxxxxxx
+Storage Size:    92.96 MB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 15203.957653 DPUs
+  - Compute DPU: 3303.004775 DPUs
+  - Read DPU:    1597.153464 DPUs
+  - Write DPU:   5151.899707 DPUs
+  - MultiRegionWrite DPU: 5151.899707 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.1216 (at $8.00 per 1M DPU units)
+Storage Cost:    $.030676 (monthly)
+Total Monthly:   $.152276
+==============================
+$
+
+```
