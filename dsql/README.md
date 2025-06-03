@@ -186,7 +186,7 @@ Reference : https://marc-bowes.com/dsql-how-to-spend-a-dollar.html
 
 - Sigle Region
 ```
-[ec2-user@ip-172-31-8-156 xanadu_ga]$ sh  fetch-dpus-v1.sh <cluster id>
+$ sh  fetch-dpus-v1.sh <cluster id>
 Fetching metrics for cluster xxxxxxxxxx for the current month...
 Time range: 2025-06-01T00:00:00Z to 2025-06-03T22:49:22Z
 ======= Cluster Summary =======
@@ -205,7 +205,9 @@ DPU Cost:        $.0484 (at $8.00 per 1M DPU units)
 Storage Cost:    $.002783 (monthly)
 Total Monthly:   $.051183
 ==============================
+$
 ```
+
 - Multi Region
 ```
 $ sh  fetch-dpus-v1.sh <cluster id>
@@ -228,5 +230,4 @@ Storage Cost:    $.030676 (monthly)
 Total Monthly:   $.152276
 ==============================
 $
-
 ```
