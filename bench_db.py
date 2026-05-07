@@ -7,7 +7,7 @@ Usage:
   python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --rows 1000000
 
   # Aurora DSQL:
-  python3 bench_db.py --db dsql --host jqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
+  python3 bench_db.py --db dsql --host lmabug6a7xcqjqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
 
   # SELECT tests only (skip INSERT if data already loaded):
   python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --skip-insert
@@ -24,8 +24,7 @@ import uuid
 import random
 import datetime
 
-BATCH_SIZE_TIDB = 500      # rows per INSERT statement (multi-value)
-BATCH_SIZE_DSQL = 100      # rows per transaction (DSQL limit: 3000 rows/txn, keep safe)
+DEFAULT_BATCH_SIZE = 500    # rows per INSERT statement (multi-value)
 
 def get_connection(args, autocommit=True):
     if args.db == "tidb":
@@ -127,7 +126,7 @@ def generate_salary_row(i):
 def bulk_insert_tidb(conn, args, num_rows):
     """Batch INSERT for TiDB using multi-value INSERT."""
     cur = conn.cursor()
-    batch = BATCH_SIZE_TIDB
+    batch = args.batch_size
 
     print(f"[INSERT] Loading {num_rows} employees (batch={batch})...")
     start = time.perf_counter()
@@ -160,30 +159,32 @@ def bulk_insert_tidb(conn, args, num_rows):
     return total
 
 def bulk_insert_dsql(conn, args, num_rows):
-    """Batch INSERT for DSQL using multi-row transactions."""
+    """Batch INSERT for DSQL using multi-value INSERT (same as TiDB)."""
     cur = conn.cursor()
-    batch = BATCH_SIZE_DSQL
+    batch = args.batch_size
 
-    print(f"[INSERT] Loading {num_rows} employees (batch={batch}, per-txn)...")
+    print(f"[INSERT] Loading {num_rows} employees (batch={batch})...")
     conn.autocommit = False
     start = time.perf_counter()
     for offset in range(0, num_rows, batch):
         end = min(offset + batch, num_rows)
-        for i in range(offset, end):
-            row = generate_employee_row(i)
-            cur.execute("INSERT INTO employees (id,emp_no,first_name,last_name,birth_date,hire_date) VALUES (%s,%s,%s,%s,%s,%s)", row)
+        rows = [generate_employee_row(i) for i in range(offset, end)]
+        placeholders = ",".join(["(%s,%s,%s,%s,%s,%s)"] * len(rows))
+        flat = [v for row in rows for v in row]
+        cur.execute(f"INSERT INTO employees (id,emp_no,first_name,last_name,birth_date,hire_date) VALUES {placeholders}", flat)
         conn.commit()
         if (offset + batch) % 100000 == 0 or end == num_rows:
             print(f"  ... {end:,} employees")
     emp_time = time.perf_counter() - start
 
-    print(f"[INSERT] Loading {num_rows} salaries (batch={batch}, per-txn)...")
+    print(f"[INSERT] Loading {num_rows} salaries (batch={batch})...")
     start = time.perf_counter()
     for offset in range(0, num_rows, batch):
         end = min(offset + batch, num_rows)
-        for i in range(offset, end):
-            row = generate_salary_row(i)
-            cur.execute("INSERT INTO salaries (id,emp_no,salary,from_date,to_date) VALUES (%s,%s,%s,%s,%s)", row)
+        rows = [generate_salary_row(i) for i in range(offset, end)]
+        placeholders = ",".join(["(%s,%s,%s,%s,%s)"] * len(rows))
+        flat = [v for row in rows for v in row]
+        cur.execute(f"INSERT INTO salaries (id,emp_no,salary,from_date,to_date) VALUES {placeholders}", flat)
         conn.commit()
         if (offset + batch) % 100000 == 0 or end == num_rows:
             print(f"  ... {end:,} salaries")
@@ -283,6 +284,7 @@ def main():
     parser.add_argument("--password", default="")
     parser.add_argument("--database", default="test")
     parser.add_argument("--rows", type=int, default=1000000, help="Rows per table (default: 1M)")
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Rows per INSERT statement (default: 500)")
     parser.add_argument("--iterations", type=int, default=200, help="SELECT test iterations")
     parser.add_argument("--skip-insert", action="store_true", help="Skip table setup and INSERT")
     parser.add_argument("--aws-region", default="us-east-1")
@@ -294,7 +296,7 @@ def main():
     print(f"{'='*60}")
     print(f"  DB Benchmark (Large Scale): {args.db.upper()}")
     print(f"  Host: {args.host}:{args.port}")
-    print(f"  Rows: {args.rows:,} per table | SELECT iterations: {args.iterations}")
+    print(f"  Rows: {args.rows:,} per table | Batch: {args.batch_size} | SELECT iterations: {args.iterations}")
     print(f"{'='*60}")
 
     if not args.skip_insert:
