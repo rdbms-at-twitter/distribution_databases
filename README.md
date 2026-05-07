@@ -55,7 +55,7 @@ python3 load_data.py --db dsql --host <cluster-id>.dsql.us-east-1.on.aws --user 
 python3 load_data.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "<password>" --database test --rows 1000000 --threads 8
 ```
 
-NOTE : IF you use load_data.py, it will create table and data. Please use --skip-insert option for pk and join performance check.
+##### NOTE : IF you use load_data.py, it will create table and data. Please use --skip-insert option for pk and join performance check.
 
 - DSQL
 ```
