@@ -16,8 +16,7 @@ and zero infrastructure management. Aurora DSQL offers fast distributed SQL read
 
 ### TiDB
 
-
-
+https://docs.pingcap.com/ja/tidbcloud/basic-sql-operations/
 
 ### MySQL Cluster
 
