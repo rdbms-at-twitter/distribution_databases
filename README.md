@@ -43,7 +43,7 @@ python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --passwo
 ```
 
 
-#### If you need more data (load_data.py): 
+##### Option : If you need more data (load_data.py): 
 
 - DSQL
 ```
