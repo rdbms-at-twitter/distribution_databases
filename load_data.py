@@ -6,7 +6,7 @@ Usage:
   # TiDB (8 threads):
   python3 load_data.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --rows 1000000 --threads 8
 
-  # DSQL (16 threads):
+  # DSQL (8 threads):
   python3 load_data.py --db dsql --host jqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000 --threads 8
 
 Then run bench_db.py with --skip-insert to test SELECT only.
