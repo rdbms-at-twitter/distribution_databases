@@ -7,7 +7,7 @@ Usage:
   python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --rows 1000000
 
   # Aurora DSQL:
-  python3 bench_db.py --db dsql --host lmabug6a7xcqjqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
+  python3 bench_db.py --db dsql --host 7xcqjqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
 
   # Aurora MySQL:
   python3 bench_db.py --db aurora-mysql --host mycluster.cluster-xxxx.us-east-1.rds.amazonaws.com --port 3306 --user admin --password "password" --database test --rows 1000000
