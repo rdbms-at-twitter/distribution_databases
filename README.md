@@ -80,3 +80,8 @@ python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --passwo
   CREATE INDEX idx_employees_emp_no ON employees (emp_no);
   CREATE INDEX idx_salaries_emp_no ON salaries (emp_no);
 ```
+
+
+#### More Details and options:
+
+https://github.com/rdbms-at-twitter/distribution_databases/tree/main/compare
