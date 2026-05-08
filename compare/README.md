@@ -59,7 +59,7 @@ python3 bench_db_inc_insert.py --db dsql --host ... \
 
 ```bash
 # 8スレッド、プールサイズ8
-python3 connection_pool/bench_db_pool.py --db dsql --host ... \
+python3 bench_db_pool.py --db dsql --host ... \
   --user admin --database postgres --aws-region us-east-1 \
   --skip-insert --threads 8 --pool-size 8
 ```
@@ -68,7 +68,7 @@ python3 connection_pool/bench_db_pool.py --db dsql --host ... \
 
 ```bash
 # INSERT/SELECT共に8スレッド、プールサイズ8
-python3 connection_pool/bench_db_pool_inc_insert.py --db dsql --host ... \
+python3 bench_db_pool_inc_insert.py --db dsql --host ... \
   --user admin --database postgres --aws-region us-east-1 \
   --threads 8 --pool-size 8
 ```
