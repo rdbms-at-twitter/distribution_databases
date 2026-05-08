@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-TiDB vs Aurora DSQL Performance Benchmark (Large Scale)
-=======================================================
+TiDB vs Aurora DSQL vs Aurora MySQL Performance Benchmark (Large Scale)
+=======================================================================
 Usage:
   # TiDB:
   python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --rows 1000000
 
   # Aurora DSQL:
-  python3 bench_db.py --db dsql --host jqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
+  python3 bench_db.py --db dsql --host hrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --rows 1000000
+
+  # Aurora MySQL:
+  python3 bench_db.py --db aurora-mysql --host mycluster.cluster-xxxx.us-east-1.rds.amazonaws.com --port 3306 --user admin --password "password" --database test --rows 1000000
 
   # SELECT tests only (skip INSERT if data already loaded):
   python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --skip-insert
@@ -23,11 +26,12 @@ import sys
 import uuid
 import random
 import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 DEFAULT_BATCH_SIZE = 500    # rows per INSERT statement (multi-value)
 
 def get_connection(args, autocommit=True):
-    if args.db == "tidb":
+    if args.db in ("tidb", "aurora-mysql"):
         import pymysql
         return pymysql.connect(
             host=args.host, port=args.port,
@@ -52,7 +56,7 @@ def setup_tables(conn, args):
     cur = conn.cursor()
     print("[SETUP] Dropping existing tables...")
 
-    if args.db == "tidb":
+    if args.db in ("tidb", "aurora-mysql"):
         cur.execute("DROP TABLE IF EXISTS salaries")
         cur.execute("DROP TABLE IF EXISTS employees")
         cur.execute("""
@@ -205,22 +209,50 @@ def bench_pk_lookup(conn, args, iterations=200):
     cur.execute("SELECT id FROM employees ORDER BY id LIMIT %d" % (iterations * 10))
     all_pks = [row[0] for row in cur.fetchall()]
     pks = random.sample(all_pks, min(iterations, len(all_pks)))
-
-    # Warmup
-    for pk in pks[:10]:
-        cur.execute("SELECT * FROM employees WHERE id = %s", (str(pk),))
-        cur.fetchall()
-
-    # Benchmark
-    latencies = []
-    for pk in pks:
-        start = time.perf_counter()
-        cur.execute("SELECT * FROM employees WHERE id = %s", (str(pk),))
-        cur.fetchall()
-        elapsed = (time.perf_counter() - start) * 1000
-        latencies.append(elapsed)
-
     cur.close()
+
+    threads = args.threads
+    if threads == 1:
+        # Single-thread path
+        cur = conn.cursor()
+        for pk in pks[:10]:
+            cur.execute("SELECT * FROM employees WHERE id = %s", (str(pk),))
+            cur.fetchall()
+        latencies = []
+        for pk in pks:
+            start = time.perf_counter()
+            cur.execute("SELECT * FROM employees WHERE id = %s", (str(pk),))
+            cur.fetchall()
+            elapsed = (time.perf_counter() - start) * 1000
+            latencies.append(elapsed)
+        cur.close()
+    else:
+        # Multi-thread path
+        # NOTE: No warmup in multi-thread mode. Each worker's first query includes
+        # connection establishment overhead (IAM token gen + SSL handshake for DSQL).
+        # This inflates P95/P99/Max and skews Avg upward vs Median.
+        chunks = [pks[i::threads] for i in range(threads)]
+
+        def worker(chunk):
+            c = get_connection(args, autocommit=True)
+            cur = c.cursor()
+            lats = []
+            for pk in chunk:
+                start = time.perf_counter()
+                cur.execute("SELECT * FROM employees WHERE id = %s", (str(pk),))
+                cur.fetchall()
+                elapsed = (time.perf_counter() - start) * 1000
+                lats.append(elapsed)
+            cur.close()
+            c.close()
+            return lats
+
+        latencies = []
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = [executor.submit(worker, chunk) for chunk in chunks]
+            for f in as_completed(futures):
+                latencies.extend(f.result())
+
     return latencies
 
 def bench_join_query(conn, args, iterations=200):
@@ -231,33 +263,61 @@ def bench_join_query(conn, args, iterations=200):
     cur.execute("SELECT emp_no FROM employees ORDER BY emp_no LIMIT %d" % (iterations * 10))
     all_enos = [row[0] for row in cur.fetchall()]
     emp_nos = random.sample(all_enos, min(iterations, len(all_enos)))
-
-    # Warmup
-    for eno in emp_nos[:5]:
-        cur.execute("""
-            SELECT e.emp_no, e.first_name, e.last_name, s.salary
-            FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
-            WHERE e.emp_no = %s
-        """, (eno,))
-        cur.fetchall()
-
-    # Benchmark
-    latencies = []
-    for eno in emp_nos:
-        start = time.perf_counter()
-        cur.execute("""
-            SELECT e.emp_no, e.first_name, e.last_name, s.salary
-            FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
-            WHERE e.emp_no = %s
-        """, (eno,))
-        cur.fetchall()
-        elapsed = (time.perf_counter() - start) * 1000
-        latencies.append(elapsed)
-
     cur.close()
+
+    threads = args.threads
+    if threads == 1:
+        cur = conn.cursor()
+        for eno in emp_nos[:5]:
+            cur.execute("""
+                SELECT e.emp_no, e.first_name, e.last_name, s.salary
+                FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
+                WHERE e.emp_no = %s
+            """, (eno,))
+            cur.fetchall()
+        latencies = []
+        for eno in emp_nos:
+            start = time.perf_counter()
+            cur.execute("""
+                SELECT e.emp_no, e.first_name, e.last_name, s.salary
+                FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
+                WHERE e.emp_no = %s
+            """, (eno,))
+            cur.fetchall()
+            elapsed = (time.perf_counter() - start) * 1000
+            latencies.append(elapsed)
+        cur.close()
+    else:
+        # NOTE: No warmup in multi-thread mode (same as PK lookup above).
+        chunks = [emp_nos[i::threads] for i in range(threads)]
+
+        def worker(chunk):
+            c = get_connection(args, autocommit=True)
+            cur = c.cursor()
+            lats = []
+            for eno in chunk:
+                start = time.perf_counter()
+                cur.execute("""
+                    SELECT e.emp_no, e.first_name, e.last_name, s.salary
+                    FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
+                    WHERE e.emp_no = %s
+                """, (eno,))
+                cur.fetchall()
+                elapsed = (time.perf_counter() - start) * 1000
+                lats.append(elapsed)
+            cur.close()
+            c.close()
+            return lats
+
+        latencies = []
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = [executor.submit(worker, chunk) for chunk in chunks]
+            for f in as_completed(futures):
+                latencies.extend(f.result())
+
     return latencies
 
-def print_results(name, latencies):
+def print_results(name, latencies, elapsed_sec=None):
     p95_idx = min(int(len(latencies) * 0.95), len(latencies) - 1)
     p99_idx = min(int(len(latencies) * 0.99), len(latencies) - 1)
     sorted_lat = sorted(latencies)
@@ -265,6 +325,9 @@ def print_results(name, latencies):
     print(f"  {name}")
     print(f"{'='*60}")
     print(f"  Iterations : {len(latencies)}")
+    if elapsed_sec is not None:
+        print(f"  Elapsed    : {elapsed_sec:.2f} s")
+        print(f"  QPS        : {len(latencies)/elapsed_sec:.1f}")
     print(f"  Avg        : {statistics.mean(latencies):.2f} ms")
     print(f"  Median     : {statistics.median(latencies):.2f} ms")
     print(f"  P95        : {sorted_lat[p95_idx]:.2f} ms")
@@ -277,7 +340,7 @@ def print_results(name, latencies):
 
 def main():
     parser = argparse.ArgumentParser(description="DB Performance Benchmark - Large Scale")
-    parser.add_argument("--db", required=True, choices=["tidb", "dsql"])
+    parser.add_argument("--db", required=True, choices=["tidb", "dsql", "aurora-mysql"])
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int)
     parser.add_argument("--user", default="root")
@@ -286,17 +349,18 @@ def main():
     parser.add_argument("--rows", type=int, default=1000000, help="Rows per table (default: 1M)")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Rows per INSERT statement (default: 500)")
     parser.add_argument("--iterations", type=int, default=200, help="SELECT test iterations")
+    parser.add_argument("--threads", type=int, default=1, help="Concurrent threads for SELECT tests (default: 1)")
     parser.add_argument("--skip-insert", action="store_true", help="Skip table setup and INSERT")
     parser.add_argument("--aws-region", default="us-east-1")
 
     args = parser.parse_args()
     if args.port is None:
-        args.port = 3306 if args.db == "tidb" else 5432
+        args.port = 5432 if args.db == "dsql" else 3306
 
     print(f"{'='*60}")
     print(f"  DB Benchmark (Large Scale): {args.db.upper()}")
     print(f"  Host: {args.host}:{args.port}")
-    print(f"  Rows: {args.rows:,} per table | Batch: {args.batch_size} | SELECT iterations: {args.iterations}")
+    print(f"  Rows: {args.rows:,} per table | Batch: {args.batch_size} | Threads: {args.threads} | SELECT iterations: {args.iterations}")
     print(f"{'='*60}")
 
     if not args.skip_insert:
@@ -306,7 +370,7 @@ def main():
 
         conn = get_connection(args, autocommit=True)
         print("\n[TEST 1] INSERT Benchmark")
-        if args.db == "tidb":
+        if args.db in ("tidb", "aurora-mysql"):
             bulk_insert_tidb(conn, args, args.rows)
         else:
             bulk_insert_dsql(conn, args, args.rows)
@@ -318,12 +382,16 @@ def main():
     conn = get_connection(args, autocommit=True)
 
     print(f"\n[TEST 2] PK Lookup (x{args.iterations}): SELECT * FROM employees WHERE id = <uuid>")
+    t0 = time.perf_counter()
     pk_latencies = bench_pk_lookup(conn, args, args.iterations)
-    print_results(f"PK Lookup ({args.db.upper()}) - {args.rows:,} rows", pk_latencies)
+    pk_elapsed = time.perf_counter() - t0
+    print_results(f"PK Lookup ({args.db.upper()}) - {args.rows:,} rows", pk_latencies, pk_elapsed)
 
     print(f"\n[TEST 3] JOIN (x{args.iterations}): employees JOIN salaries ON emp_no (NO INDEX)")
+    t0 = time.perf_counter()
     join_latencies = bench_join_query(conn, args, args.iterations)
-    print_results(f"JOIN Query ({args.db.upper()}) - {args.rows:,} rows, no index", join_latencies)
+    join_elapsed = time.perf_counter() - t0
+    print_results(f"JOIN Query ({args.db.upper()}) - {args.rows:,} rows, no index", join_latencies, join_elapsed)
 
     conn.close()
     print("\n[DONE] Benchmark complete.")
