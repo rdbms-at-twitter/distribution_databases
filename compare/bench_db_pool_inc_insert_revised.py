@@ -430,16 +430,28 @@ def bench_join_query(pool, args, iterations=200):
         def worker(chunk):
             c = get_conn_from_pool(pool, args)
             cur = c.cursor()
-            # Cold-start query (measured separately)
+            # Cold-start query (measured separately) with OC001 retry
             warmup = []
-            start = time.perf_counter()
-            cur.execute("""
-                SELECT e.emp_no, e.first_name, e.last_name, s.salary
-                FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
-                WHERE e.emp_no = %s
-            """, (chunk[0],))
-            cur.fetchall()
-            warmup.append((time.perf_counter() - start) * 1000)
+            for attempt in range(3):
+                try:
+                    start = time.perf_counter()
+                    cur.execute("""
+                        SELECT e.emp_no, e.first_name, e.last_name, s.salary
+                        FROM employees e JOIN salaries s ON e.emp_no = s.emp_no
+                        WHERE e.emp_no = %s
+                    """, (chunk[0],))
+                    cur.fetchall()
+                    warmup.append((time.perf_counter() - start) * 1000)
+                    break
+                except Exception as e:
+                    if "OC001" in str(e) and attempt < 2:
+                        cur.close()
+                        put_conn_to_pool(pool, c, args)
+                        time.sleep(0.5)
+                        c = get_conn_from_pool(pool, args)
+                        cur = c.cursor()
+                    else:
+                        raise
             # Steady-state measurement
             lats = []
             for eno in chunk[WARMUP_QUERIES:]:
@@ -634,8 +646,27 @@ def main():
         if args.db == "dsql":
             print("[POOL] Refreshing pool after schema change...")
             close_pool(pool, args)
+            time.sleep(2)
             pool = create_pool(args)
-            print("[POOL] Pool refreshed.")
+            # Warm up all connections to flush stale schema cache
+            def _warmup(i):
+                c = get_conn_from_pool(pool, args)
+                cur = c.cursor()
+                for attempt in range(3):
+                    try:
+                        cur.execute("SELECT 1")
+                        cur.fetchall()
+                        break
+                    except Exception as e:
+                        if "OC001" in str(e) and attempt < 2:
+                            time.sleep(0.5)
+                        else:
+                            raise
+                cur.close()
+                put_conn_to_pool(pool, c, args)
+            with ThreadPoolExecutor(max_workers=args.pool_size) as ex:
+                list(ex.map(_warmup, range(args.pool_size)))
+            print("[POOL] Pool refreshed (all connections warmed up).")
 
         # Re-run JOIN with indexes
         print(f"\n[TEST 5] JOIN (x{args.iterations}): employees JOIN salaries ON emp_no (WITH INDEX)")
