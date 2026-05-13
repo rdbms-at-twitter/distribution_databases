@@ -52,7 +52,7 @@ python3 bench_db.py --db dsql --host ... --skip-insert --threads 8
 ```
 python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --with-index
 python3 bench_db.py --db dsql --host pfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --with-index
-python3 bench_db.py --db aurora-mysql --host aurora-v3.cluster-cpdziwfew7pa.us-east-1.rds.amazonaws.com --port 3306 --user admin --password "password" --database test --with-index
+python3 bench_db.py --db aurora-mysql --host aurora-v3.cluster-test.us-east-1.rds.amazonaws.com --port 3306 --user admin --password "password" --database test --with-index
 ```
 
 ### マルチスレッドINSERT（bench_db_inc_insert.py）
