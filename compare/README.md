@@ -47,6 +47,14 @@ python3 bench_db.py --db dsql --host xxx.dsql.us-east-1.on.aws \
 python3 bench_db.py --db dsql --host ... --skip-insert --threads 8
 ```
 
+- Additional Index benc (No Index and With Index Benchmark) : 
+
+```
+python3 bench_db.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --with-index
+python3 bench_db.py --db dsql --host pfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --with-index
+python3 bench_db.py --db aurora-mysql --host aurora-v3.cluster-cpdziwfew7pa.us-east-1.rds.amazonaws.com --port 3306 --user admin --password "password" --database test --with-index
+```
+
 ### マルチスレッドINSERT（bench_db_inc_insert.py）
 
 ```bash
@@ -72,6 +80,18 @@ python3 bench_db_pool_inc_insert.py --db dsql --host ... \
   --user admin --database postgres --aws-region us-east-1 \
   --threads 8 --pool-size 8
 ```
+
+#### In addition: Additional Bnechmark with Index 
+
+- DSQL
+```
+$python3 bench_db_pool_inc_insert.py --db dsql --host lmabug6a7xcqjqohrppfncdfsa.dsql.us-east-1.on.aws --user admin --database postgres --aws-region us-east-1 --iterations 800 --threads 8 --pool-size 8 --with-index
+```
+
+```
+$ python3 bench_db_pool_inc_insert.py --db tidb --host 127.0.0.1 --port 3306 --user admin --password "password" --database test --latency-host 10.90.3.86 --latency-port 4000 --iterations 800 --threads 8 --pool-size 8 --with-index
+```
+
 
 ### データロード専用（load_data.py）
 
