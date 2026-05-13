@@ -134,6 +134,7 @@ python3 bench_db.py --db dsql --host ... --skip-insert --threads 8
 
 - DSQL は `--password` 不要（IAM認証を使用）
 - DSQL のConnection Pool版は IAMトークンを1週間有効で生成（`ExpiresIn=604800`）
+  - IAM認証はPool作成時に実施
 - DSQL のセッション有効期限は最大1時間（Pool内接続のリフレッシュが必要）
 - TiDB (HAProxy構成) ではConnection Pool使用時にJOIN性能が悪化する事象あり（原因未特定）
 - Aurora MySQL db.r8g.large (2vCPU) では8スレッド以上でvCPU飽和が発生
