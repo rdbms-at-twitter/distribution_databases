@@ -1,24 +1,33 @@
 #!/bin/bash
 #
-# fetch-dpus-cdc.sh - Aurora DSQL DPU Cost Report
+# fetch-dpus-cdc-v2.sh - Aurora DSQL DPU Cost Report (with CDC Stream support)
+#
+# Description:
+#   Fetches CloudWatch metrics for an Aurora DSQL cluster and generates a
+#   monthly DPU cost report including Read, Write, Compute, and Stream (CDC) DPUs.
+#   Applies Free Tier deduction and calculates billable cost.
 #
 # Usage:
-#   ./fetch-dpus-cdc.sh <cluster-id> [region] [--stream-id <stream-id>]
+#   ./fetch-dpus-cdc-v2.sh <cluster-id> [region]
 #
 # Examples:
-#   ./fetch-dpus-cdc.sh lmabug6a7xcqjqohrppfncdfaa                                    # us-east-1, no stream
-#   ./fetch-dpus-cdc.sh lmabug6a7xcqjqohrppfncdfaa us-east-1 --stream-id artyuaev7bya  # with CDC stream
-#   ./fetch-dpus-cdc.sh lmabug6a7xcqjqohrppfncdfaa ap-northeast-1                      # Tokyo
-#
-# Options:
-#   --stream-id <id>   CDC stream identifier for StreamDPU metric (requires StreamId dimension)
+#   ./fetch-dpus-cdc-v2.sh lmabug6a7xcq              # us-east-1 (default)
+#   ./fetch-dpus-cdc-v2.sh lmabug6a7xcq ap-northeast-1  # Tokyo
 #
 # Output:
 #   - Daily DPU breakdown table (Read/Write/Compute/Stream)
-#   - Monthly summary with cost estimate
-#   - Free tier usage tracking
+#   - DPU composition bar chart
+#   - Monthly summary with cost estimate (Free Tier applied)
+#
+# Notes:
+#   - TotalDPU metric from CloudWatch does NOT include StreamDPU.
+#     StreamDPU requires an additional "StreamId" dimension, so this script
+#     fetches it separately via fetch_stream_metric().
+#   - Cost = (TotalDPU + StreamDPU - FreeTier) × price_per_1M_DPU
+#   - If no CDC stream exists, StreamDPU is reported as 0.
 #
 # Pricing source: https://aws.amazon.com/aurora/dsql/pricing/
+# Last updated: 2026-07-27
 #
 
 set -euo pipefail
@@ -42,10 +51,8 @@ DEFAULT_REGION="us-east-1"
 # ============================================================
 # Argument parsing
 # ============================================================
-STREAM_ID=""
-
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <cluster-id> [region] [--stream-id <stream-id>]"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "Usage: $0 <cluster-id> [region]"
     echo ""
     echo "  Default region: $DEFAULT_REGION"
     echo "  Supported regions: ${!PRICING[*]}"
@@ -53,22 +60,7 @@ if [ $# -lt 1 ]; then
 fi
 
 CLUSTER_ID=$1
-shift
-
-# Parse remaining args
-REGION="$DEFAULT_REGION"
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --stream-id)
-            STREAM_ID="$2"
-            shift 2
-            ;;
-        *)
-            REGION="$1"
-            shift
-            ;;
-    esac
-done
+REGION=${2:-$DEFAULT_REGION}
 
 if [[ -z "${PRICING[$REGION]+x}" ]]; then
     echo "ERROR: Unsupported region '$REGION'"
@@ -87,7 +79,7 @@ MONTH_LABEL=$(date -u +"%Y-%m")
 STORAGE_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ" -d "1 hour ago" 2>/dev/null || date -u -v-1H +"%Y-%m-%dT%H:%M:%SZ")
 
 # ============================================================
-# Header
+# Header (ANSI reverse video for title bar)
 # ============================================================
 ESC=$(printf '\033')
 REV="${ESC}[7m"
@@ -105,7 +97,7 @@ echo "  Pricing:  \$$DPU_PRICE/1M DPU  |  \$$STORAGE_PRICE/GB-month  |  Free: ${
 echo ""
 
 # ============================================================
-# Storage
+# Storage size (latest data point from the past hour)
 # ============================================================
 STORAGE_SIZE_BYTES=$(aws cloudwatch get-metric-statistics \
     --namespace "AWS/AuroraDSQL" \
@@ -132,8 +124,11 @@ else
 fi
 
 # ============================================================
-# Fetch daily DPU metrics
+# Metric fetching functions
 # ============================================================
+
+# fetch_metric - Fetch a standard DPU metric (Read/Write/Compute/Total)
+# These metrics use only the ClusterId dimension.
 fetch_metric() {
     aws cloudwatch get-metric-statistics \
         --namespace "AWS/AuroraDSQL" \
@@ -147,29 +142,42 @@ fetch_metric() {
         --output json
 }
 
-TOTAL_DPU_JSON=$(fetch_metric "TotalDPU")
-READ_DPU_JSON=$(fetch_metric "ReadDPU")
-WRITE_DPU_JSON=$(fetch_metric "WriteDPU")
-COMPUTE_DPU_JSON=$(fetch_metric "ComputeDPU")
+# fetch_stream_metric - Fetch StreamDPU metric
+# StreamDPU requires BOTH ClusterId and StreamId dimensions.
+# CloudWatch returns empty Datapoints if only ClusterId is specified.
+# This function auto-discovers the StreamId via dsql list-streams.
+# Returns empty Datapoints JSON if no CDC stream exists.
+fetch_stream_metric() {
+    local STREAM_ID
+    STREAM_ID=$(aws dsql list-streams --cluster-identifier "$CLUSTER_ID" --region "$REGION" \
+        --query 'streams[0].streamIdentifier' --output text 2>/dev/null)
 
-# StreamDPU requires both ClusterId and StreamId dimensions
-if [[ -n "$STREAM_ID" ]]; then
-    STREAM_DPU_JSON=$(aws cloudwatch get-metric-statistics \
+    if [[ -z "$STREAM_ID" || "$STREAM_ID" == "None" ]]; then
+        echo '{"Datapoints":[]}'
+        return
+    fi
+
+    aws cloudwatch get-metric-statistics \
         --namespace "AWS/AuroraDSQL" \
         --metric-name "StreamDPU" \
-        --dimensions Name=ClusterId,Value=$CLUSTER_ID Name=StreamId,Value=$STREAM_ID \
+        --dimensions Name=ClusterId,Value="$CLUSTER_ID" Name=StreamId,Value="$STREAM_ID" \
         --start-time "$START_TIME" \
         --end-time "$END_TIME" \
         --period 86400 \
         --statistics Sum \
         --region "$REGION" \
-        --output json)
-else
-    STREAM_DPU_JSON='{"Datapoints":[]}'
-fi
+        --output json
+}
+
+# Fetch all metrics
+TOTAL_DPU_JSON=$(fetch_metric "TotalDPU")
+READ_DPU_JSON=$(fetch_metric "ReadDPU")
+WRITE_DPU_JSON=$(fetch_metric "WriteDPU")
+COMPUTE_DPU_JSON=$(fetch_metric "ComputeDPU")
+STREAM_DPU_JSON=$(fetch_stream_metric)
 
 # ============================================================
-# Build daily table (merge by date)
+# Build daily table (merge all metrics by date)
 # ============================================================
 DAILY_TABLE=$(jq -n \
     --argjson total "$TOTAL_DPU_JSON" \
@@ -199,16 +207,24 @@ $dates | map({
 ')
 
 # ============================================================
-# Monthly totals
+# Monthly totals and cost calculation
 # ============================================================
-DPU_SUM=$(echo "$DAILY_TABLE" | jq '[.[].total] | add // 0')
+DPU_SUM=$(echo "$DAILY_TABLE" | jq '[.[].total] | add // 0')       # TotalDPU (excludes Stream)
 READ_SUM=$(echo "$DAILY_TABLE" | jq '[.[].read] | add // 0')
 WRITE_SUM=$(echo "$DAILY_TABLE" | jq '[.[].write] | add // 0')
 COMPUTE_SUM=$(echo "$DAILY_TABLE" | jq '[.[].compute] | add // 0')
-STREAM_SUM=$(echo "$DAILY_TABLE" | jq '[.[].stream] | add // 0')
+STREAM_SUM=$(echo "$DAILY_TABLE" | jq '[.[].stream] | add // 0')   # StreamDPU (separate metric)
 NUM_DAYS=$(echo "$DAILY_TABLE" | jq 'length')
 
-DPU_COST=$(echo "scale=4; $DPU_SUM * $DPU_PRICE / 1000000" | bc)
+# Combined = TotalDPU + StreamDPU (because CloudWatch TotalDPU does NOT include Stream)
+TOTAL_WITH_STREAM=$(echo "$DPU_SUM + $STREAM_SUM" | bc)
+
+# Billable = Combined - Free Tier (clamped to 0)
+EXCESS_DPU=$(echo "$TOTAL_WITH_STREAM - $FREE_TIER_DPU" | bc)
+if (( $(echo "$EXCESS_DPU < 0" | bc -l) )); then EXCESS_DPU=0; fi
+
+# Cost = Billable DPU × price per 1M DPU
+DPU_COST=$(echo "scale=4; $EXCESS_DPU * $DPU_PRICE / 1000000" | bc)
 
 # ============================================================
 # Daily breakdown table
@@ -220,6 +236,8 @@ echo "  ├────────────┼──────────
 fmt_num() { printf "%'.0f" "$1"; }
 fmt_cell() { printf "%10s" "$(fmt_num "$1")"; }
 
+# Note: Daily "Cost" column shows raw cost without Free Tier deduction (reference only).
+# The actual billable cost is in the Monthly Summary below.
 echo "$DAILY_TABLE" | jq -r '.[] | [.date, .read, .write, .compute, .stream, .total] | @tsv' | \
 while IFS=$'\t' read -r date read write compute stream total; do
     cost=$(echo "scale=2; $total * $DPU_PRICE / 1000000" | bc)
@@ -234,7 +252,7 @@ echo "  └────────────┴──────────
 echo ""
 
 # ============================================================
-# DPU composition bar (using ANSI reverse video)
+# DPU composition bar chart (ANSI reverse video)
 # ============================================================
 BAR_WIDTH=40
 echo "  DPU Composition:"
@@ -254,13 +272,11 @@ done
 echo ""
 
 # ============================================================
-# Monthly summary
+# Monthly summary box
 # ============================================================
 PEAK_DAY=$(echo "$DAILY_TABLE" | jq -r 'max_by(.total) | "\(.date) (\(.total | tostring | split(".")[0]) DPU)"')
-EXCESS_DPU=$(echo "$DPU_SUM - $FREE_TIER_DPU" | bc)
 
-# Helper: print a summary line with right-aligned box border
-# Usage: sum_line "Label:" "Value"
+# Helper: print a summary line within the box
 BOX_W=60
 sum_line() {
     local content="  $1 $2"
@@ -280,14 +296,15 @@ sum_line "Storage:" "$STORAGE_SIZE_DISPLAY"
 sum_line "Active Days:" "$NUM_DAYS"
 sum_line "Peak Day:" "$PEAK_DAY"
 sum_empty
-sum_line "Total DPU:" "$(fmt_num "$DPU_SUM")"
+sum_line "Total DPU (excl. Stream):" "$(fmt_num "$DPU_SUM")"
+sum_line "Stream DPU (CDC):" "$(fmt_num "$STREAM_SUM")"
+sum_line "Combined:" "$(fmt_num "$TOTAL_WITH_STREAM")"
 sum_line "Free Tier:" "$(fmt_num "$FREE_TIER_DPU")"
 
 if (( $(echo "$EXCESS_DPU > 0" | bc -l) )); then
-    EXCESS_COST=$(echo "scale=4; $EXCESS_DPU * $DPU_PRICE / 1000000" | bc)
     sum_line "Excess DPU:" "$(fmt_num "$EXCESS_DPU") (billable)"
 else
-    REMAINING=$(echo "0 - $EXCESS_DPU" | bc)
+    REMAINING=$(echo "$FREE_TIER_DPU - $TOTAL_WITH_STREAM" | bc)
     sum_line "Remaining:" "$(fmt_num "$REMAINING") DPU until limit"
 fi
 
