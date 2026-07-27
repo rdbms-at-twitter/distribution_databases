@@ -231,3 +231,128 @@ Total Monthly:   $.152276
 ==============================
 $
 ```
+
+## Cost Estimate with CDC
+
+- Cost Estimate in this month :
+
+```
+[ec2-user@ip-172-31-8-156 xanadu_ga]$ sh fetch-dpus-cdc-v3.sh lmabug6a7xcq
+
+
+             Aurora DSQL — Monthly DPU Cost Report
+
+
+  Cluster:  lmabug6a7xcq
+  Region:   us-east-1
+  Period:   2026-07-01T00:00:00Z → 2026-07-27T08:53:54Z
+  Pricing:  $8.00/1M DPU  |  $0.33/GB-month  |  Free: 100000 DPU + 1 GB
+
+  ┌────────────┬────────────┬────────────┬────────────┬────────────┬────────────┬──────────┐
+  │    Date    │    Read    │   Write    │  Compute   │   Stream   │    Total   │   Cost   │
+  ├────────────┼────────────┼────────────┼────────────┼────────────┼────────────┼──────────┤
+  │ 2026-07-21 │          3 │          0 │          4 │          0 │          7 │ $  0.00 │
+  │ 2026-07-27 │    125,998 │     37,520 │      1,477 │      5,978 │    164,995 │ $  1.31 │
+  ├────────────┼────────────┼────────────┼────────────┼────────────┼────────────┼──────────┤
+  │ TOTAL      │    126,000 │     37,520 │      1,481 │      5,978 │    165,002 │ $  0.57 │
+  └────────────┴────────────┴────────────┴────────────┴────────────┴────────────┴──────────┘
+
+  DPU Composition:
+    Read                                     76.3%  (126,000)
+    Write               22.7%  (37,520)
+    Compute      .8%  (1,481)
+    Stream       3.6%  (5,978)
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                      Monthly Summary                       │
+  ├────────────────────────────────────────────────────────────┤
+  │  Storage: 116.37 MB                                        │
+  │  Active Days: 2                                            │
+  │  Peak Day: 2026-07-27 (164995 DPU)                         │
+  │                                                            │
+  │  Total DPU (excl. Stream): 165,002                         │
+  │  Stream DPU (CDC): 5,978                                   │
+  │  Combined: 170,980                                         │
+  │  Free Tier: 100,000                                        │
+  │  Excess DPU: 70,980 (billable)                             │
+  │                                                            │
+  │  DPU Cost: $0.57                                           │
+  │  Storage Cost: $0.00 (0.00 GB billable)                    │
+  │                                                            │
+  │  ★ Total Cost: $0.57                                       │
+  └────────────────────────────────────────────────────────────┘
+
+[ec2-user@ip-172-31-8-156 xanadu_ga]$
+
+```
+
+- Cost Estimate Last Month (FIX)
+
+```
+[ec2-user@ip-172-31-8-156 xanadu_ga]$ sh fetch-dpus-cdc-lastmonth.sh lmabug6a7xcq
+
+
+       Aurora DSQL — Previous Month DPU Cost Report
+
+
+  Cluster:  lmabug6a7xcq
+  Region:   us-east-1
+  Period:   2026-06-01T00:00:00Z → 2026-07-01T00:00:00Z
+  Pricing:  $8.00/1M DPU  |  $0.33/GB-month  |  Free: 100000 DPU + 1 GB
+
+  ┌────────────┬────────────┬────────────┬────────────┬────────────┬────────────┬──────────┐
+  │    Date    │    Read    │   Write    │  Compute   │   Stream   │    Total   │   Cost   │
+  ├────────────┼────────────┼────────────┼────────────┼────────────┼────────────┼──────────┤
+  │ 2026-06-08 │          0 │          0 │          0 │          0 │          0 │ $  0.00 │
+  │ 2026-06-09 │          1 │          2 │          2 │          0 │          5 │ $  0.00 │
+  │ 2026-06-18 │      7,680 │        489 │        708 │          9 │      8,878 │ $  0.07 │
+  │ 2026-06-19 │    127,066 │      2,908 │      8,783 │         57 │    138,757 │ $  1.11 │
+  ├────────────┼────────────┼────────────┼────────────┼────────────┼────────────┼──────────┤
+  │ TOTAL      │    134,747 │      3,399 │      9,493 │         67 │    147,640 │ $  0.38 │
+  └────────────┴────────────┴────────────┴────────────┴────────────┴────────────┴──────────┘
+
+  DPU Composition:
+    Read                                           91.2%  (134,747)
+    Write       2.3%  (3,399)
+    Compute       6.4%  (9,493)
+    Stream        0%  (67)
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                 Monthly Summary (2026-06)                  │
+  ├────────────────────────────────────────────────────────────┤
+  │  Active Days: 4                                            │
+  │  Peak Day: 2026-06-19 (138757 DPU)                         │
+  │                                                            │
+  │  Total DPU (excl. Stream): 147,640                         │
+  │  Stream DPU (CDC): 67                                      │
+  │  Combined: 147,706                                         │
+  │  Free Tier: 100,000                                        │
+  │  Excess DPU: 47,706 (billable)                             │
+  │                                                            │
+  │  ★ Estimated DPU Cost: $0.38                               │
+  │                                                            │
+  │  --- Cost Explorer Comparison ---                          │
+  │  Cost Explorer Actual: $0.39                               │
+  │  Difference: $-0.01                                        │
+  └────────────────────────────────────────────────────────────┘
+
+[ec2-user@ip-172-31-8-156 xanadu_ga]$
+
+```
+
+<img width="868" height="767" alt="image" src="https://github.com/user-attachments/assets/1e2f5b54-fb4c-4c83-9e91-f18edde079e2" />
+
+- CLIでの確認 : 
+```
+aws ce get-cost-and-usage \
+  --granularity MONTHLY \
+  --metrics UnblendedCost \
+  --filter '{"Dimensions":{"Key":"SERVICE","Values":["Aurora DSQL"]}}' \
+  --time-period Start=2026-06-01,End=2026-07-01 \
+  --region us-east-1 \
+  --query 'ResultsByTime[0].Total.UnblendedCost.Amount' \
+  --output text
+```
+
+<img width="645" height="160" alt="image" src="https://github.com/user-attachments/assets/cd805868-ea85-47d2-a93c-b1d741f121e9" />
+
